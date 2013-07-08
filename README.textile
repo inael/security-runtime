@@ -1,0 +1,21 @@
+h1. Segurança em Go
+
+* Autores: Arthur Henrique Guimarãess, Inael Rodrigues
+* Desde: 06/07/2013
+
+h2. Descrição
+
+Projeto para a disciplina de programação paralela e ditribuída da turma de mestrado em ciências da computação 
+da Universidade Federal de Goiás. 
+Possui como objetivo ...
+
+Professor Orientador:  Ricardo Couto Antunes da Rocha
+
+h2. Como compilar
+
+* 
+
+h3. Observações
+
+
+h4. TODO list
