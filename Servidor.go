@@ -12,7 +12,7 @@ import (
 )
 
 type P struct {
-	M []byte
+	M string
 	K string
 }
 
@@ -20,8 +20,8 @@ func handleConnection(conn net.Conn) {
 	dec := gob.NewDecoder(conn)
 	p := &P{}
 	dec.Decode(p)
-	fmt.Printf("MSG criptografada : %+v", p.M)
-	fmt.Printf("MSG descriptografa : %+v", Decrypter(p.M, p.K))
+	fmt.Println("MSG criptografada : ", p.M)
+	fmt.Printf("MSG descriptografada : %s\n", Decrypter(p.M, p.K))
 }
 
 func main() {
@@ -39,7 +39,7 @@ func main() {
 	}
 }
 
-func Encrypter(plainText string, key string) []byte {
+func Encrypter(plainText string, key string) string {
 	keyByte := []byte(key)
 	plaintext := []byte(plainText)
 
@@ -69,12 +69,12 @@ func Encrypter(plainText string, key string) []byte {
 	// be secure.
 	fmt.Printf("%x\n", ciphertext)
 
-	return ciphertext
+	return hex.EncodeToString(ciphertext) 
 }
 
-func Decrypter(cipherText []byte, key string) string {
+func Decrypter(cipherTextString string, key string) []byte {
 	keyByte := []byte(key)
-	ciphertext, _ := hex.DecodeString(cipherText)
+	ciphertext, _ := hex.DecodeString(cipherTextString)
 
 	block, err := aes.NewCipher(keyByte)
 	if err != nil {
@@ -107,6 +107,6 @@ func Decrypter(cipherText []byte, key string) string {
 	// using crypto/hmac) before being decrypted in order to avoid creating
 	// a padding oracle.
 
-	fmt.Printf("%s\n", ciphertext)
-	return cipherText
+	
+	return ciphertext
 }
