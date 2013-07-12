@@ -13,7 +13,7 @@ import (
 )
 
 type P struct {
-	M []byte
+	M string
 	K string
 }
 
@@ -24,19 +24,22 @@ func main() {
 		log.Fatal("Connection error", err)
 	}
 	encoder := gob.NewEncoder(conn)
-	key := "example key 1234"
-	ciphertext := Encrypter("inael", key)
-	p := &P{ciphertext, key}
+	key := "0000000000000001"//key size 16
+        text :="_inaelrodrigues_"
+	ciphertext := Encrypter(text, key)
+      	p := &P{ciphertext, key}
 	encoder.Encode(p)
+        fmt.Println("Msg plana: "+text)
+        fmt.Println("Msg criptograda  enviada: "+ciphertext)
+        fmt.Println("Chave usada: "+key)
 	conn.Close()
 	fmt.Println("done")
 }
 
-func Encrypter(plainText string, key string) []byte {
+func Encrypter(plainText string, key string) string {
 	keyByte := []byte(key)
 	plaintext := []byte(plainText)
-
-	if len(plaintext)%aes.BlockSize != 0 {
+        if len(plaintext)%aes.BlockSize != 0 {
 		panic("plaintext is not a multiple of the block size")
 	}
 
@@ -60,9 +63,9 @@ func Encrypter(plainText string, key string) []byte {
 	// It's important to remember that ciphertexts must be authenticated
 	// (i.e. by using crypto/hmac) as well as being encrypted in order to
 	// be secure.
-	fmt.Printf("%x\n", ciphertext)
+	//fmt.Printf("%x\n", ciphertext)
 
-	return ciphertext
+	return hex.EncodeToString(ciphertext) 
 }
 
 func Decrypter(cipherText string, key string) string {
