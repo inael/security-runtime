@@ -1,40 +1,135 @@
 package main
 
-import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/gob"
-	"encoding/hex"
-	"fmt"
-	"io"
-	"log"
-	"net"
+import ( 
+  "net"     // provides the Listener and Conn types that hide many of the details of setting up socket connections
+//  "bufio"   // provides buffered read methods, simplifying common tasks like reading lines from a socket
+  "strconv" // function Itoa() that converts an integer to a string
+  "fmt"     // for printing strings to the console
+  "bytes"   // Compare bytes
+  "crypto/cipher"
+  "crypto/rand"
+  "encoding/hex"
+  "crypto/aes"
+  "io"
 )
-
-type P struct {
-	M string
-	K string
-}
+// port that the server is going to listen
+const S_PORT = 9000 
+const S_ADDR = "10.110.0.144:"
+const KEY = "0000000000000001"
 
 func main() {
-	fmt.Println("start client")
-	conn, err := net.Dial("tcp", "localhost:8080")
-	if err != nil {
-		log.Fatal("Connection error", err)
-	}
-	encoder := gob.NewEncoder(conn)
-	key := "0000000000000001"//key size 16
-        text :="_inaelrodrigues_"
-	ciphertext := Encrypter(text, key)
-      	p := &P{ciphertext, key}
-	encoder.Encode(p)
-        fmt.Println("Msg plana: "+text)
-        fmt.Println("Msg criptograda  enviada: "+ciphertext)
-        fmt.Println("Chave usada: "+key)
-	conn.Close()
-	fmt.Println("done")
+
+  fmt.Printf("Initializing Client...\n")
+  server, err := net.Dial("tcp", S_ADDR + strconv.Itoa(S_PORT))
+  if err != nil {
+    fmt.Printf("Connection Refused: ")
+	  panic(err)// handle error
+  }  
+   var msg = make([]byte, 512)
+   server.Read(msg)
+   n := bytes.Index(msg, []byte{0})
+   s := string(msg[:n])
+   fmt.Printf(s+"\n")
+  
+  fmt.Printf("Use $unsec for secure connections or $sec for unsecure:\n")
+  Switch(server)
+  
 }
+
+func Switch(server net.Conn){
+  var message string
+  continue_ch := make(chan int, 1)
+  for{
+    fmt.Scan(&message)
+    if(message == "$unsec"){
+      fmt.Printf("Unsecure connection with:\n")
+      go HandleUnsec(server, continue_ch)
+    } else if(message == "$sec"){
+      fmt.Printf("Secure connection!\n")
+      go HandleSec(server,continue_ch)
+    }
+     <- continue_ch 
+  }
+
+}
+
+func HandleUnsec(server net.Conn, continue_ch chan int){
+    server.Write([]byte("unsec\n"))
+
+    var msg = make([]byte, 512)
+	  server.Read(msg)
+   
+    n := bytes.Index(msg, []byte{0})
+    s := string(msg[:n])
+    fmt.Printf(s+"\n\n")
+
+    unsec_server, err := net.Dial("tcp", s)
+    if err != nil {
+      fmt.Printf("Connection Refused: ")
+	    panic(err)// handle error
+    } 
+ 
+    fmt.Printf("Now you can send your unsecure messages:\n")
+    fmt.Printf("Use $end to finish the unsecure connection.\n")
+    var message string
+
+    for{
+        fmt.Scanf("%s", &message)
+        fmt.Printf("Lido: " + message +"\n")
+        if(message == "$end"){
+           break 
+        }
+        //unsec_server.Write([]byte(message))
+        fmt.Fprintf(unsec_server, message+"\n")
+        unsec_server.Read(msg)
+        fmt.Printf("ECHO: ",msg,"\n");        
+        n = bytes.Index(msg, []byte{0})
+        s = string(msg[:n])
+    }
+    continue_ch <- 1
+}
+
+func HandleSec(server net.Conn, continue_ch chan int){
+    server.Write([]byte("sec\n"))
+
+    var msg = make([]byte, 512)
+	  server.Read(msg)
+    n := bytes.Index(msg, []byte{0})
+    s := string(msg[:n])
+    fmt.Printf(s+"\n\n")
+
+    sec_server, err := net.Dial("tcp", s)
+    if err != nil {
+      fmt.Printf("Connection Refused: ")
+	    panic(err)// handle error
+    } 
+ 
+    fmt.Printf("Now you can send your secure messages:\n")
+    fmt.Printf("Use $end to finish the secure connection.\n")
+    var message string
+
+    for{
+        fmt.Scanf("%s", &message)
+        fmt.Printf("Lido: " + message +"\n")
+       
+        if(message == "$end"){
+           break 
+        } 
+        msgEncrypted := Encrypter(message,KEY);
+        //unsec_server.Write([]byte(message))
+        fmt.Fprintf(sec_server, msgEncrypted+"\n")
+        sec_server.Read(msg)
+        
+        n = bytes.Index(msg, []byte{0})
+        s = string(msg[:n])
+        msgDecrypted := Decrypter(s,KEY);
+        fmt.Printf("ECHO: %s",msgDecrypted);        
+        
+        
+    }
+    continue_ch <- 1
+}
+
 
 func Encrypter(plainText string, key string) string {
 	keyByte := []byte(key)
@@ -68,7 +163,7 @@ func Encrypter(plainText string, key string) string {
 	return hex.EncodeToString(ciphertext) 
 }
 
-func Decrypter(cipherText string, key string) string {
+func Decrypter(cipherText string, key string) []byte {
 	keyByte := []byte(key)
 	ciphertext, _ := hex.DecodeString(cipherText)
 
@@ -103,6 +198,6 @@ func Decrypter(cipherText string, key string) string {
 	// using crypto/hmac) before being decrypted in order to avoid creating
 	// a padding oracle.
 
-	fmt.Printf("%s\n", ciphertext)
-	return cipherText
+	//fmt.Printf("%s\n", ciphertext)
+	return ciphertext
 }

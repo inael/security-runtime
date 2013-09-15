@@ -1,0 +1,109 @@
+package main
+ 
+import (
+    "crypto/rand"
+    "crypto/tls"
+    "log"
+    "bytes" 
+    "strconv"
+    "net"
+    "crypto/x509"
+)
+type ConfigSec struct{
+	enableSec bool;
+}
+const IP = "127.0.0.1:"
+const PORT =8084
+func main() {
+    cert, err := tls.LoadX509KeyPair("certs/server.pem", "certs/server.key")
+    if err != nil {
+        log.Fatalf("server: loadkeys: %s", err)
+    }
+    config := tls.Config{Certificates: []tls.Certificate{cert}}
+    config.Rand = rand.Reader
+    
+    service := IP + strconv.Itoa(PORT)
+    listener, err := tls.Listen("tcp", service, &config)
+    if err != nil {
+        log.Fatalf("server: listen: %s", err)
+    }
+    log.Print("server: listening")
+    for {
+        connConfig, err := listener.Accept()
+        if err != nil {
+            log.Printf("server: accept: %s", err)
+            break
+        }
+        defer connConfig.Close()
+        log.Printf("server: accepted from %s", connConfig.RemoteAddr())
+        tlscon, ok := connConfig.(*tls.Conn)
+        if ok {
+            state := tlscon.ConnectionState()
+            for _, v := range state.PeerCertificates {
+                log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
+            }
+        }
+        go handleConn(connConfig)
+    }
+}
+ 
+func handleConn(connConfig net.Conn) {
+    defer connConfig.Close()
+    for {
+    	
+    	buf := make([]byte, 512)
+    	log.Print("server: conn: waiting")
+        n, err := connConfig.Read(buf)
+        if err != nil {
+            if err != nil {
+                log.Printf("server: conn: read: %s", err)
+            }
+            break
+        }
+	log.Printf("server: conn: echo %q\n", string(buf[:n]))
+	unsec:=[]byte("$unsec")
+	if(bytes.HasPrefix(buf, unsec) == true){
+	  log.Printf("server: Client wish start a Unsec Connection");
+          unsec_server, err := net.Listen("tcp", IP+"0")
+          if unsec_server == nil {
+	    // exits the application
+	    panic(err)
+	  }
+	  log.Printf("server: Unsecure Connection was open at %s",unsec_server.Addr().String());
+  	  // announces to client the address 
+  	  unsec_addr := []byte( unsec_server.Addr().String())
+  	  n, err = connConfig.Write(unsec_addr)
+          log.Printf("server: Sending  Ip:Port to Client Unsec Connect %s",unsec_addr)
+          if err != nil {
+            log.Printf("server: write: %s", err)
+            break
+          }
+          go handleUnsecConn(unsec_server);
+        }
+    }
+    log.Println("server: conn: closed")
+}
+func handleUnsecConn(unsec_server net.Listener){
+	for{
+		connUnsec, err := unsec_server.Accept()
+		log.Printf("------------ %s -------------",unsec_server.Addr().String());
+		if err != nil {
+		    log.Printf("server: accept: %s", err)
+		    break
+		}
+		buf := make([]byte, 512)
+		log.Print("server: conn: waiting")
+		n, err := connUnsec.Read(buf)
+		if err != nil {
+		    if err != nil {
+			log.Printf("server: conn: read: %s", err)
+		    }
+		    break
+		}
+		log.Printf("server: conn: echo %q\n", string(buf[:n]))
+		n, err = connUnsec.Write(buf[:n])
+		log.Printf("-----------------------------");
+		
+	}
+
+}
