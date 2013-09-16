@@ -84,8 +84,9 @@ func handleConn(connConfig net.Conn) {
     log.Println("server: conn: closed")
 }
 func handleUnsecConn(unsec_server net.Listener){
+	connUnsec, err := unsec_server.Accept()
 	for{
-		connUnsec, err := unsec_server.Accept()
+		
 		log.Printf("------------ %s -------------",unsec_server.Addr().String());
 		if err != nil {
 		    log.Printf("server: accept: %s", err)
@@ -102,7 +103,7 @@ func handleUnsecConn(unsec_server net.Listener){
 		}
 		log.Printf("server: conn: echo %q\n", string(buf[:n]))
 		n, err = connUnsec.Write(buf[:n])
-		log.Printf("-----------------------------");
+		
 		
 	}
 

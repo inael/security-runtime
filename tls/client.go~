@@ -4,7 +4,7 @@ import (
    // "crypto/tls"
 	"crypto/tls"
    // "crypto/x509"
-    
+    "fmt"
     "io"
     "log"
 	"net"
@@ -25,19 +25,23 @@ func main() {
     conn := DialSec("tcp", "127.0.0.1:8084", enableSec)
     
     log.Printf("client: connected to host: %s \n",  conn.connUnsec.RemoteAddr())
-	
-    message := "Hello\n"
-	//Write writes data to the connection, call conn.Write([]byte(s))
-    n, err := io.WriteString(conn.connUnsec, message)
-    if err != nil {
-        log.Fatalf("client: write: %s", err)
+    
+    var message string
+    for{
+	    fmt.Scan(&message)
+		//Write writes data to the connection, call conn.Write([]byte(s))
+	    n, err := io.WriteString(conn.connUnsec, message)
+	    if err != nil {
+		log.Fatalf("client: write: %s", err)
+	    }
+	    log.Printf("client: wrote %q (%d bytes)", message, n)
     }
-    log.Printf("client: wrote %q (%d bytes)", message, n)
- 
+    /*
     reply := make([]byte, 256)//create a buffer
 	//Read reads data from the connection.
     n, err = conn.connUnsec.Read(reply)
     log.Printf("client: read %q (%d bytes)", string(reply[:n]), n) 
+    */
     log.Print("client: exiting") 
 }
 

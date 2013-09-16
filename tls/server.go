@@ -27,7 +27,7 @@ func main() {
     if err != nil {
         log.Fatalf("server: listen: %s", err)
     }
-    log.Print("server: listening")
+    log.Print("server: listening config")
     for {
         connConfig, err := listener.Accept()
         if err != nil {
@@ -43,11 +43,11 @@ func main() {
                 log.Print(x509.MarshalPKIXPublicKey(v.PublicKey))
             }
         }
-        go handleConn(connConfig)
+        go handleConnConfig(connConfig)
     }
 }
  
-func handleConn(connConfig net.Conn) {
+func handleConnConfig(connConfig net.Conn) {
     defer connConfig.Close()
     for {
     	
@@ -61,33 +61,33 @@ func handleConn(connConfig net.Conn) {
             break
         }
 	log.Printf("server: conn: echo %q\n", string(buf[:n]))
-	unsec:=[]byte("$unsec")
-	if(bytes.HasPrefix(buf, unsec) == true){
+	insec:=[]byte("$insec")
+	if(bytes.HasPrefix(buf, insec) == true){
 	  log.Printf("server: Client wish start a Unsec Connection");
-          unsec_server, err := net.Listen("tcp", IP+"0")
-          if unsec_server == nil {
+          insec_server, err := net.Listen("tcp", IP+"0")
+          if insec_server == nil {
 	    // exits the application
 	    panic(err)
 	  }
-	  log.Printf("server: Unsecure Connection was open at %s",unsec_server.Addr().String());
+	  log.Printf("server: Unsecure Connection was open at %s",insec_server.Addr().String());
   	  // announces to client the address 
-  	  unsec_addr := []byte( unsec_server.Addr().String())
-  	  n, err = connConfig.Write(unsec_addr)
-          log.Printf("server: Sending  Ip:Port to Client Unsec Connect %s",unsec_addr)
+  	  insec_addr := []byte( insec_server.Addr().String())
+  	  n, err = connConfig.Write(insec_addr)
+          log.Printf("server: Sending  Ip:Port to Client Unsec Connect %s",insec_addr)
           if err != nil {
             log.Printf("server: write: %s", err)
             break
           }
-          go handleUnsecConn(unsec_server);
+          go handleUnsecConn(insec_server);
         }
     }
     log.Println("server: conn: closed")
 }
-func handleUnsecConn(unsec_server net.Listener){
-	connUnsec, err := unsec_server.Accept()
+func handleUnsecConn(insec_server net.Listener){
+	connUnsec, err := insec_server.Accept()
 	for{
 		
-		log.Printf("------------ %s -------------",unsec_server.Addr().String());
+		log.Printf("------------ %s -------------",insec_server.Addr().String());
 		if err != nil {
 		    log.Printf("server: accept: %s", err)
 		    break
