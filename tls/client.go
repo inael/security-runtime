@@ -4,6 +4,7 @@ import (
    // "crypto/tls"
 	"crypto/tls"
    // "crypto/x509"
+   "bytes"
     "fmt"
     "io"
     "log"
@@ -20,26 +21,44 @@ import (
 
 func main() {
  
-	//A Conn represents a secured connection. It implements the net.Conn interface.
+//A Conn represents a secured connection. It implements the net.Conn interface.
     enableSec:= false;
-    conn := DialSec("tcp", "127.0.0.1:8084", enableSec)
+    network:="tcp"
+    addr:="127.0.0.1:8084"
+    conn := DialSec(network,addr , enableSec)
     
     log.Printf("client: connected to host: %s \n",  conn.connInsec.RemoteAddr())
     
     var message string
     for{
 	    fmt.Scan(&message)
-		//Write writes data to the connection, call conn.Write([]byte(s))
-	    n, err := io.WriteString(conn.connInsec, message)
-	    if err != nil {
-		log.Fatalf("client: write: %s", err)
+	    if(bytes.HasPrefix([]byte(message), []byte("$insec")) == true){
+	    	    conn.config.enableSec = false;
+		    if(conn.config.enableSec==false && conn.connInsec==nil){//change just when current connection is secure
+			    conn.connSec.Close();
+			    conn.connSec = nil;
+			    hostToConnect := HandShake(conn, network, addr, false);
+			    handleInsecureConn(network, hostToConnect,&conn);	
+		    }
+	    }else if(bytes.HasPrefix([]byte(message), []byte("$sec")) == true){
+	    	     conn.config.enableSec = true;
+	    	    if(conn.connSec==nil){//change just when current connection is secure
+			    conn.connInsec.Close();
+			    conn.connInsec= nil;
+			    hostToConnect := HandShake(conn, network, addr, true);
+			    handleSecureConn(network, hostToConnect,&conn);	
+		    }
 	    }
-	    log.Printf("client: wrote %q (%d bytes)", message, n)
+	    //Write writes data to the connection, call conn.Write([]byte(s))
+	    conn.Write([]byte(message));
     }
     /*
     reply := make([]byte, 256)//create a buffer
 	//Read reads data from the connection.
-    n, err = conn.connInsec.Read(reply)
+    //n, err = conn.connInsec.Read(reply)
+    //TODO 
+    n, err = conn.Read(reply)
+    
     log.Printf("client: read %q (%d bytes)", string(reply[:n]), n) 
     */
     log.Print("client: exiting") 
@@ -58,7 +77,23 @@ type ConfigSec struct{
 	enableSec bool;
 }
 
-
+func (connections *Connections)Write(b []byte) (n int, err error){
+	if(connections.connInsec !=nil){
+	   n, err :=connections.connInsec.Write(b);
+	   checkError(err);
+	   log.Printf("client: wrote Insecure %q (%d bytes)", b, n)
+	}else if(connections.connSec!=nil){
+	   n, err := connections.connSec.Write(b);
+	   checkError(err);
+	   log.Printf("client: wrote Secure %q (%d bytes)", b, n)
+	}
+	return 
+}
+func checkError(err error){
+	if err != nil {
+		log.Fatalf("client: write: %s", err)
+	}
+}
 func DialSec(network, addr string, enableSec bool) Connections {
 	configSec:=ConfigSec{enableSec: enableSec}
 	connections := Connections{config:configSec};
@@ -98,7 +133,7 @@ func HandShake(conn Connections, network, addr string, enableSec bool)(string){
 	//Write writes data to the connection, call conn.Write([]byte(s))
 	n, err := io.WriteString(conn.connConfig, message)
 	if err != nil {
-		log.Fatalf("client: write: %s", err)
+		log.Fatalf("client error: write: %s", err)
         }
         reply := make([]byte, 256)//create a buffer
 	//Read reads data from the connection.
@@ -107,11 +142,18 @@ func HandShake(conn Connections, network, addr string, enableSec bool)(string){
 	log.Printf("client: Server send the following host to connect: %s\n", hostToConnect)
 	return hostToConnect;
 }
+/*Change connection between insecure connection and secure connections*/
+func switchConnection(connections* Connections){
+	if(connections.connInsec ==nil){
+	   //connections.connInsec = 
+	}
+
+}
 func handleSecureConn(network string, hostToConnect string, connections* Connections){
 	log.Println("client: Setting Security Config");
 	cert, err := tls.LoadX509KeyPair("certs/client.pem", "certs/client.key")
 	if err != nil {
-		log.Fatalf("server: loadkeys: %s", err)
+		log.Fatalf("client: loadkeys: %s", err)
 	}
 	config := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
 	//A Conn represents a secured connection. It implements the net.Conn interface.
@@ -132,5 +174,6 @@ func handleInsecureConn(network string, hostToConnect string, connections* Conne
 	}
 	log.Println("client: Insecure Connection established ");
 	connections.connInsec = connInsec;
+	log.Println("client: Inseecure Connection established ");
 	//defer connections.connSec.Close()
 }

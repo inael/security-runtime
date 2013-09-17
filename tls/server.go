@@ -62,6 +62,7 @@ func handleConnConfig(connConfig net.Conn) {
         }
 	log.Printf("server: conn: echo %q\n", string(buf[:n]))
 	insec:=[]byte("$insec")
+	sec:=[]byte("$sec")
 	if(bytes.HasPrefix(buf, insec) == true){
 	  log.Printf("server: Client wish start a Unsec Connection");
           insec_server, err := net.Listen("tcp", IP+"0")
@@ -77,11 +78,59 @@ func handleConnConfig(connConfig net.Conn) {
           if err != nil {
             log.Printf("server: write: %s", err)
             break
-          }
+          }                                             
           go handleUnsecConn(insec_server);
+        }else if(bytes.HasPrefix(buf, sec) == true){
+           log.Printf("server: Client wish start a Sec Connection");
+            cert, err := tls.LoadX509KeyPair("certs/server.pem", "certs/server.key")
+	    if err != nil {
+		log.Fatalf("server: loadkeys: %s", err)
+	    }
+           config := tls.Config{Certificates: []tls.Certificate{cert}}
+           config.Rand = rand.Reader
+           sec_server, err := tls.Listen("tcp",  IP+"0", &config)
+          if sec_server == nil {
+	    // exits the application
+	    panic(err)
+	  }
+	  log.Printf("server: Secure Connection was open at %s",sec_server.Addr().String());
+  	  // announces to client the address 
+  	  sec_addr := []byte( sec_server.Addr().String())
+  	  n, err = connConfig.Write(sec_addr)
+          log.Printf("server: Sending  Ip:Port to Client Sec Connect %s",sec_addr)
+          if err != nil {
+            log.Printf("server: write: %s", err)
+            break
+          }
+          go handleSecConn(sec_server);
         }
     }
     log.Println("server: conn: closed")
+}
+func handleSecConn(sec_server net.Listener){
+	connSec, err := sec_server.Accept()
+	for{
+		
+		log.Printf("------------ %s -------------",sec_server.Addr().String());
+		if err != nil {
+		    log.Printf("server secure: accept: %s", err)
+		    break
+		}
+		buf := make([]byte, 512)
+		log.Print("server secure: conn: waiting")
+		n, err := connSec.Read(buf)
+		if err != nil {
+		    if err != nil {
+			log.Printf("server: conn: read: %s", err)
+		    }
+		    break
+		}
+		log.Printf("server secure: conn: echo %q\n", string(buf[:n]))
+		n, err = connSec.Write(buf[:n])
+		
+		
+	}
+
 }
 func handleUnsecConn(insec_server net.Listener){
 	connUnsec, err := insec_server.Accept()
@@ -93,15 +142,15 @@ func handleUnsecConn(insec_server net.Listener){
 		    break
 		}
 		buf := make([]byte, 512)
-		log.Print("server: conn: waiting")
+		log.Print("server insecure: conn: waiting")
 		n, err := connUnsec.Read(buf)
 		if err != nil {
 		    if err != nil {
-			log.Printf("server: conn: read: %s", err)
+			log.Printf("server insecure: conn: read: %s", err)
 		    }
 		    break
 		}
-		log.Printf("server: conn: echo %q\n", string(buf[:n]))
+		log.Printf("server insecure: conn: echo %q\n", string(buf[:n]))
 		n, err = connUnsec.Write(buf[:n])
 		
 		
